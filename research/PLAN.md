@@ -158,3 +158,7 @@ Later activity profiles can include walking, running, hiking, wheelchair travel,
 OpenStreetMap can provide cycleways, bicycle access, surface, smoothness, road class, grade proxies, and many access restrictions. A routing engine can use those tags for route choice. A DEM can provide elevation and climb estimates. Live traffic, reliable safety ratings, and complete lane-level detail are provider-dependent and must be labeled as such instead of inferred from a generic map line.
 
 See [ACTIVITY_PROFILES.md](ACTIVITY_PROFILES.md) for the activity model. Cycling remains the first shipping profile; the editor is designed so running, hiking, walking, mountain biking, and e-bike profiles can be added without forking route editing. Swimming and indoor activities require different data and are intentionally separate follow-on work.
+
+## Workspace controls in the first demonstration
+
+The first demonstration includes routing preferences (bike type, surface tolerance, hill preference, and bike-lane bias), map display options (route visibility and distance markers), undo/redo, browser-local route saving/loading, and GPX export. Saving is local to the browser until an account or sync model is deliberately designed.
