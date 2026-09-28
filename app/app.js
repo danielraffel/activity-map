@@ -16,11 +16,11 @@ function distance(coords) { let total = 0; for (let i=1;i<coords.length;i++) tot
 function redrawMarkers() {
   state.markers.forEach(m => map.removeLayer(m)); state.markers = state.points.map((p, i) => {
     const marker = L.marker(p, { draggable: true, icon: L.divIcon({ className:'', html:`<div class="route-marker" style="width:20px;height:20px"><span style="position:absolute;color:white;font:700 10px system-ui;transform:translate(5px,1px)">${i+1}</span></div>`, iconSize:[20,20], iconAnchor:[10,10] }) }).addTo(map);
-    marker.on('dragstart', () => saveHistory()); marker.on('dragend', e => { const ll=e.target.getLatLng(); state.points[i]={lat:ll.lat,lng:ll.lng}; route(); }); return marker;
+    marker.on('dragend', e => { const ll=e.target.getLatLng(); state.points[i]={lat:ll.lat,lng:ll.lng}; saveHistory(); route(); }); return marker;
   });
 }
 function drawShape(coords) { state.shape = coords; if (state.line) map.removeLayer(state.line); state.distanceMarkers.forEach(m => map.removeLayer(m)); state.distanceMarkers=[]; state.line = coords.length > 1 ? L.polyline(coords, { color:'#d85b38', weight:5, opacity:.9, lineCap:'round', lineJoin:'round' }).addTo(map) : null; if (coords.length > 1) { let acc=0; for(let i=1;i<coords.length;i++){ acc += L.latLng(coords[i-1]).distanceTo(L.latLng(coords[i])); if(acc>1000){ const m=L.circleMarker(coords[i],{radius:4,color:'#18201c',weight:1,fillColor:'#fbfaf6',fillOpacity:.95}); m.bindTooltip(`${(acc/1000).toFixed(0)} km`,{permanent:true,direction:'top',className:'distance-label'}); m.addTo(map); state.distanceMarkers.push(m); acc=0; } } } updateStats(); }
-function addPoint(ll, record=true) { if(record) saveHistory(); state.points.push({lat:ll.lat,lng:ll.lng}); redrawMarkers(); route(); }
+function addPoint(ll) { state.points.push({lat:ll.lat,lng:ll.lng}); saveHistory(); redrawMarkers(); route(); }
 async function route() {
   if (state.points.length < 2) { drawShape(state.points); message(state.points.length ? 'Add another point to find a bike-friendly route.' : 'Click the map to begin.'); return; }
   setLoading(true); message('');
@@ -39,10 +39,10 @@ async function route() {
 function decodePolyline(str, precision) { let index=0, lat=0, lng=0, factor=10**precision, out=[]; while(index<str.length){ let result=0,shift=0,b; do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);lat += result&1 ? ~(result>>1) : result>>1; result=0;shift=0; do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);lng += result&1 ? ~(result>>1) : result>>1; out.push([lat/factor,lng/factor]); } return out; }
 function gpx() { const pts=state.shape; const body=pts.map(([lat,lon])=>`    <trkpt lat="${lat.toFixed(7)}" lon="${lon.toFixed(7)}"></trkpt>`).join('\n'); return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Activity Map" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>Activity Map route</name></metadata><trk><name>Activity Map route</name><trkseg>\n${body}\n</trkseg></trk></gpx>`; }
 function exportGPX() { const blob=new Blob([gpx()],{type:'application/gpx+xml'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='activity-map-route.gpx'; a.click(); URL.revokeObjectURL(a.href); message('GPX downloaded.'); }
-function parseGPX(text) { const xml=new DOMParser().parseFromString(text,'application/xml'); const pts=[...xml.querySelectorAll('trkpt,rtept')].map(n=>({lat:+n.getAttribute('lat'),lng:+n.getAttribute('lon')})).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)); if(pts.length<2) throw new Error('No route points found'); state.points=pts; state.history=[pts.map(p=>({...p}))]; redrawMarkers(); drawShape(pts); map.fitBounds(L.latLngBounds(pts),{padding:[35,35]}); route(); message('Imported GPX. Drag a point to edit it.'); }
+function parseGPX(text) { const xml=new DOMParser().parseFromString(text,'application/xml'); const pts=[...xml.querySelectorAll('trkpt,rtept')].map(n=>({lat:+n.getAttribute('lat'),lng:+n.getAttribute('lon')})).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)); if(pts.length<2) throw new Error('No route points found'); state.points=pts; state.history=[pts.map(p=>({...p}))]; state.redo=[]; redrawMarkers(); drawShape(pts); map.fitBounds(L.latLngBounds(pts),{padding:[35,35]}); route(); message('Imported GPX. Drag a point to edit it.'); }
 map.on('click', e => addPoint(e.latlng));
-$('clearButton').onclick=()=>{saveHistory();state.points=[];redrawMarkers();drawShape([]);message('Route cleared. Click the map to begin.')};
-$('undoButton').onclick=()=>{if(state.history.length<2)return;state.redo.push(state.history.pop());state.points=state.history[state.history.length-1].map(p=>({...p}));redrawMarkers();route();updateHistoryButtons()};
+$('clearButton').onclick=()=>{state.points=[];saveHistory();redrawMarkers();drawShape([]);message('Route cleared. Click the map to begin.')};
+$('undoButton').onclick=()=>{if(!state.history.length)return; state.redo.push(state.history.pop()); const previous=state.history[state.history.length-1]||[]; state.points=previous.map(p=>({...p})); redrawMarkers(); route(); updateHistoryButtons()};
 $('redoButton').onclick=()=>{if(!state.redo.length)return;const next=state.redo.pop();state.history.push(next.map(p=>({...p})));state.points=next.map(p=>({...p}));redrawMarkers();route();updateHistoryButtons()};
 $('exportButton').onclick=exportGPX;
 $('importButton').onclick=()=>$('fileInput').click();
