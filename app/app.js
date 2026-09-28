@@ -2,7 +2,7 @@ const map = L.map('map', { zoomControl: false }).setView([37.7749, -122.4194], 1
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
-const state = { points: [], shape: [], markers: [], line: null, distanceMarkers: [], history: [], redo: [] };
+const state = { points: [], shape: [], markers: [], line: null, distanceMarkers: [], directionMarkers: [], history: [], redo: [] };
 let routeRequestId = 0;
 const $ = id => document.getElementById(id);
 const message = (text, error = false) => { $('message').textContent = text; $('message').classList.toggle('error', error); };
@@ -10,8 +10,8 @@ const setLoading = value => { $('loading').hidden = !value; };
 const km = m => `${(m / 1000).toFixed(m > 10000 ? 1 : 2)} km`;
 
 function saveHistory() { state.history.push(state.points.map(p => ({ lat: p.lat, lng: p.lng }))); state.redo = []; if (state.history.length > 30) state.history.shift(); updateHistoryButtons(); }
-function updateHistoryButtons() { $('undoButton').disabled = state.history.length < 2; $('redoButton').disabled = state.redo.length === 0; }
-function syncDisplay() { if (state.line) state.line.setStyle({ opacity: $('showRoutePath').checked ? .9 : 0 }); state.distanceMarkers.forEach(m => m.setOpacity($('showDistanceMarkers').checked ? 1 : 0)); }
+function updateHistoryButtons() { $('undoButton').disabled = state.history.length < 2; $('redoButton').disabled = state.redo.length === 0; $('reverseButton').disabled = state.points.length < 2; }
+function syncDisplay() { const visible=$('showRoutePath').checked; if (state.line) state.line.setStyle({ opacity: visible ? .9 : 0 }); state.distanceMarkers.forEach(m => m.setOpacity(visible && $('showDistanceMarkers').checked ? 1 : 0)); state.directionMarkers.forEach(m => m.setOpacity(visible ? 1 : 0)); }
 function updateStats() { $('stops').textContent = state.points.length; $('distance').textContent = state.shape.length > 1 ? km(distance(state.shape)) : '—'; $('clearButton').disabled = state.points.length === 0; $('exportButton').disabled = state.shape.length < 2; $('saveButton').disabled = state.shape.length < 2; $('loadButton').disabled = !localStorage.getItem('activity-map.savedRoute'); updateHistoryButtons(); syncDisplay(); }
 function distance(coords) { let total = 0; for (let i=1;i<coords.length;i++) total += L.latLng(coords[i-1]).distanceTo(L.latLng(coords[i])); return total; }
 function renderPointList() { const box=$('pointList'); if(!state.points.length){box.hidden=true;box.innerHTML='';return;} box.hidden=false; box.innerHTML=state.points.map((p,i)=>{const label=i===0?'Start':i===state.points.length-1&&state.points.length>1?'End':`Waypoint ${i}`; return `<div class="point-row"><span class="point-badge">${i===0?'●':i===state.points.length-1&&state.points.length>1?'◆':i}</span><input aria-label="${label}" value="${label}" readonly><button type="button" data-remove-point="${i}" aria-label="Remove ${label}">×</button></div>`}).join(''); }
@@ -22,7 +22,7 @@ function redrawMarkers() {
     marker.on('dragend', e => { const ll=e.target.getLatLng(); state.points[i]={lat:ll.lat,lng:ll.lng}; saveHistory(); route(); }); return marker;
   });
 }
-function drawShape(coords) { state.shape = coords; if (state.line) map.removeLayer(state.line); state.distanceMarkers.forEach(m => map.removeLayer(m)); state.distanceMarkers=[]; state.line = coords.length > 1 ? L.polyline(coords, { color:'#d85b38', weight:5, opacity:.9, lineCap:'round', lineJoin:'round' }).addTo(map) : null; if (coords.length > 1) { let acc=0; for(let i=1;i<coords.length;i++){ acc += L.latLng(coords[i-1]).distanceTo(L.latLng(coords[i])); if(acc>1000){ const m=L.circleMarker(coords[i],{radius:4,color:'#18201c',weight:1,fillColor:'#fbfaf6',fillOpacity:.95}); m.bindTooltip(`${(acc/1000).toFixed(0)} km`,{permanent:true,direction:'top',className:'distance-label'}); m.addTo(map); state.distanceMarkers.push(m); acc=0; } } } updateStats(); }
+function drawShape(coords) { state.shape = coords; if (state.line) map.removeLayer(state.line); state.distanceMarkers.forEach(m => map.removeLayer(m)); state.directionMarkers.forEach(m => map.removeLayer(m)); state.distanceMarkers=[]; state.directionMarkers=[]; state.line = coords.length > 1 ? L.polyline(coords, { color:'#d85b38', weight:5, opacity:.9, lineCap:'round', lineJoin:'round' }).addTo(map) : null; if (coords.length > 1) { let acc=0, arrowAcc=0; for(let i=1;i<coords.length;i++){ const segment=L.latLng(coords[i-1]).distanceTo(L.latLng(coords[i])); acc += segment; arrowAcc += segment; if(acc>1000){ const m=L.circleMarker(coords[i],{radius:4,color:'#18201c',weight:1,fillColor:'#fbfaf6',fillOpacity:.95}); m.bindTooltip(`${(acc/1000).toFixed(0)} km`,{permanent:true,direction:'top',className:'distance-label'}); m.addTo(map); state.distanceMarkers.push(m); acc=0; } if(arrowAcc>1400){ const a=coords[i-1], b=coords[i], angle=Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI; const marker=L.marker(coords[i-1],{interactive:false,icon:L.divIcon({className:'',html:`<div class="route-arrow" style="transform:rotate(${angle}deg)"></div>`,iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map); state.directionMarkers.push(marker); arrowAcc=0; } } } updateStats(); }
 function addPoint(ll) { state.points.push({lat:ll.lat,lng:ll.lng}); saveHistory(); redrawMarkers(); route(); }
 async function route() {
   const requestId = ++routeRequestId;
@@ -49,6 +49,8 @@ function parseGPX(text) { const xml=new DOMParser().parseFromString(text,'applic
 map.on('click', e => addPoint(e.latlng));
 $('pointList').addEventListener('click', e => { const button=e.target.closest('[data-remove-point]'); if(!button)return; const index=+button.dataset.removePoint; state.points.splice(index,1); saveHistory(); redrawMarkers(); route(); });
 $('clearButton').onclick=()=>{state.points=[];saveHistory();redrawMarkers();drawShape([]);message('Route cleared. Click the map to begin.')};
+$('reverseButton').onclick=()=>{if(state.points.length<2)return;state.points.reverse();saveHistory();redrawMarkers();route();message('Route direction reversed.')};
+$('addWaypoint').onclick=()=>message('Click the map to add the next waypoint.');
 $('undoButton').onclick=()=>{if(!state.history.length)return; state.redo.push(state.history.pop()); const previous=state.history[state.history.length-1]||[]; state.points=previous.map(p=>({...p})); redrawMarkers(); route(); updateHistoryButtons()};
 $('redoButton').onclick=()=>{if(!state.redo.length)return;const next=state.redo.pop();state.history.push(next.map(p=>({...p})));state.points=next.map(p=>({...p}));redrawMarkers();route();updateHistoryButtons()};
 $('exportButton').onclick=exportGPX;
