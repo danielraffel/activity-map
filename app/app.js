@@ -1,0 +1,49 @@
+const map = L.map('map', { zoomControl: false }).setView([37.7749, -122.4194], 12);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+
+const state = { points: [], shape: [], markers: [], line: null, history: [] };
+const $ = id => document.getElementById(id);
+const message = (text, error = false) => { $('message').textContent = text; $('message').classList.toggle('error', error); };
+const setLoading = value => { $('loading').hidden = !value; };
+const km = m => `${(m / 1000).toFixed(m > 10000 ? 1 : 2)} km`;
+
+function saveHistory() { state.history.push(state.points.map(p => ({ lat: p.lat, lng: p.lng }))); if (state.history.length > 30) state.history.shift(); $('undoButton').disabled = state.history.length < 2; }
+function updateStats() { $('stops').textContent = state.points.length; $('distance').textContent = state.shape.length > 1 ? km(distance(state.shape)) : '—'; $('clearButton').disabled = state.points.length === 0; $('exportButton').disabled = state.shape.length < 2; }
+function distance(coords) { let total = 0; for (let i=1;i<coords.length;i++) total += L.latLng(coords[i-1]).distanceTo(L.latLng(coords[i])); return total; }
+function redrawMarkers() {
+  state.markers.forEach(m => map.removeLayer(m)); state.markers = state.points.map((p, i) => {
+    const marker = L.marker(p, { draggable: true, icon: L.divIcon({ className:'', html:`<div class="route-marker" style="width:20px;height:20px"><span style="position:absolute;color:white;font:700 10px system-ui;transform:translate(5px,1px)">${i+1}</span></div>`, iconSize:[20,20], iconAnchor:[10,10] }) }).addTo(map);
+    marker.on('dragstart', () => saveHistory()); marker.on('dragend', e => { const ll=e.target.getLatLng(); state.points[i]={lat:ll.lat,lng:ll.lng}; route(); }); return marker;
+  });
+}
+function drawShape(coords) { state.shape = coords; if (state.line) map.removeLayer(state.line); state.line = coords.length > 1 ? L.polyline(coords, { color:'#d85b38', weight:5, opacity:.9, lineCap:'round', lineJoin:'round' }).addTo(map) : null; updateStats(); }
+function addPoint(ll, record=true) { if(record) saveHistory(); state.points.push({lat:ll.lat,lng:ll.lng}); redrawMarkers(); route(); }
+async function route() {
+  if (state.points.length < 2) { drawShape(state.points); message(state.points.length ? 'Add another point to find a bike-friendly route.' : 'Click the map to begin.'); return; }
+  setLoading(true); message('');
+  try {
+    const locations = state.points.map(p => ({ lat:p.lat, lon:p.lng }));
+    const bikeType = $('bikeType').value;
+    const costing_options = { bicycle_type: bikeType, use_roads: $('bikeLanes').checked ? 0.15 : 0.5, avoid_bad_surfaces: bikeType === 'Road' ? true : false };
+    const res = await fetch('https://valhalla1.openstreetmap.de/route', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({locations,costing:'bicycle',costing_options,units:'kilometers',shape_format:'polyline6',directions_options:{units:'kilometers'}}) });
+    if (!res.ok) throw new Error(`Routing service returned ${res.status}`);
+    const data = await res.json(); if (!data.trip?.legs?.length) throw new Error('No route found');
+    const coords = []; data.trip.legs.forEach(leg => { const decoded = decodePolyline(leg.shape, 6); if (coords.length) decoded.shift(); coords.push(...decoded); });
+    drawShape(coords); message('Bike route ready. Drag a point to reshape it.');
+  } catch (e) { drawShape(state.points); message('Routing is temporarily unavailable; showing your direct line. Try again in a moment.', true); }
+  finally { setLoading(false); }
+}
+function decodePolyline(str, precision) { let index=0, lat=0, lng=0, factor=10**precision, out=[]; while(index<str.length){ let result=0,shift=0,b; do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);lat += result&1 ? ~(result>>1) : result>>1; result=0;shift=0; do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);lng += result&1 ? ~(result>>1) : result>>1; out.push([lat/factor,lng/factor]); } return out; }
+function gpx() { const pts=state.shape; const body=pts.map(([lat,lon])=>`    <trkpt lat="${lat.toFixed(7)}" lon="${lon.toFixed(7)}"></trkpt>`).join('\n'); return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Activity Map" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>Activity Map route</name></metadata><trk><name>Activity Map route</name><trkseg>\n${body}\n</trkseg></trk></gpx>`; }
+function exportGPX() { const blob=new Blob([gpx()],{type:'application/gpx+xml'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='activity-map-route.gpx'; a.click(); URL.revokeObjectURL(a.href); message('GPX downloaded.'); }
+function parseGPX(text) { const xml=new DOMParser().parseFromString(text,'application/xml'); const pts=[...xml.querySelectorAll('trkpt,rtept')].map(n=>({lat:+n.getAttribute('lat'),lng:+n.getAttribute('lon')})).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)); if(pts.length<2) throw new Error('No route points found'); state.points=pts; state.history=[pts.map(p=>({...p}))]; redrawMarkers(); drawShape(pts); map.fitBounds(L.latLngBounds(pts),{padding:[35,35]}); route(); message('Imported GPX. Drag a point to edit it.'); }
+map.on('click', e => addPoint(e.latlng));
+$('clearButton').onclick=()=>{saveHistory();state.points=[];redrawMarkers();drawShape([]);message('Route cleared. Click the map to begin.')};
+$('undoButton').onclick=()=>{if(state.history.length<2)return;state.history.pop();state.points=state.history[state.history.length-1].map(p=>({...p}));redrawMarkers();route()};
+$('exportButton').onclick=exportGPX;
+$('importButton').onclick=()=>$('fileInput').click();
+$('fileInput').onchange=e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>{try{parseGPX(r.result)}catch(err){message(err.message,true)}};r.readAsText(f)}};
+async function search(){const q=$('searchInput').value.trim();if(!q)return;message('Searching…');try{const res=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(q)}`,{headers:{Accept:'application/json'}});const data=await res.json();const box=$('searchResults');box.innerHTML='';box.hidden=!data.length;data.forEach(item=>{const b=document.createElement('button');b.className='search-result';b.innerHTML=`${item.display_name.split(',')[0]}<small>${item.display_name}</small>`;b.onclick=()=>{map.setView([+item.lat,+item.lon],14);box.hidden=true;message('Click the map to add a route point.');};box.appendChild(b)});if(!data.length)message('No places found.',true)}catch(e){message('Place search is unavailable right now.',true)}}
+$('bikeType').onchange=()=>{if(state.points.length>1)route()}; $('bikeLanes').onchange=()=>{if(state.points.length>1)route()};
+$('searchButton').onclick=search;$('searchInput').onkeydown=e=>{if(e.key==='Enter')search()};

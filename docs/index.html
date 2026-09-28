@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Activity Map — bike route studio</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3tE8fE2e2X9wQ2M8J3M5xG5sQ5p8=" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">activity<span>map</span></a>
+    <div class="tagline">a quiet place to plan a ride</div>
+    <div class="top-actions"><button id="importButton" class="button subtle">Import GPX</button><input id="fileInput" type="file" accept=".gpx,application/gpx+xml" hidden><button id="exportButton" class="button primary" disabled>Export GPX</button></div>
+  </header>
+  <main class="workspace">
+    <aside class="panel">
+      <div class="eyebrow">ACTIVITY ROUTE STUDIO</div>
+      <h1>Make a route<br><em>worth exploring.</em></h1>
+      <p class="intro">Search for a place, click the map to add stops, then drag the points until the ride feels right.</p>
+      <label class="search"><span aria-hidden="true">⌕</span><input id="searchInput" placeholder="Search a place" autocomplete="off"><button id="searchButton" aria-label="Search">↵</button></label>
+      <div id="searchResults" class="search-results" hidden></div>
+      <div class="mode-row"><label for="bikeType">Bike type</label><select id="bikeType"><option value="Road">Road bike</option><option value="Hybrid" selected>Everyday bike</option><option value="Cross">Gravel / cross</option><option value="Mountain">Mountain bike</option></select><span class="status-dot"></span></div><label class="preference"><input id="bikeLanes" type="checkbox" checked> Prefer bike lanes and cycleways</label>
+      <div class="instructions"><div class="step"><b>1</b><span>Click the map to add a start and stops.</span></div><div class="step"><b>2</b><span>Drag any point to reshape your route.</span></div><div class="step"><b>3</b><span>Export a GPX for OpenTrailPaper or your bike computer.</span></div></div>
+      <div class="stats"><div><small>DISTANCE</small><strong id="distance">—</strong></div><div><small>STOPS</small><strong id="stops">0</strong></div></div>
+      <div class="actions"><button id="undoButton" class="button subtle" disabled>Undo</button><button id="clearButton" class="button subtle" disabled>Clear</button></div>
+      <p id="message" class="message" role="status">Click the map to begin.</p>
+      <footer><span>Map data © OpenStreetMap contributors</span><span>Routing by Valhalla</span></footer>
+    </aside>
+    <section class="map-wrap"><div id="map" aria-label="Interactive route map"></div><div class="map-hint">Click to add a point · drag points to edit</div><div id="loading" class="loading" hidden><span class="spinner"></span>Finding a bike-friendly route…</div></section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
