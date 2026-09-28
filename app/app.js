@@ -3,6 +3,7 @@ L.control.zoom({ position: 'bottomright' }).addTo(map);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
 const state = { points: [], shape: [], markers: [], line: null, distanceMarkers: [], history: [], redo: [] };
+let routeRequestId = 0;
 const $ = id => document.getElementById(id);
 const message = (text, error = false) => { $('message').textContent = text; $('message').classList.toggle('error', error); };
 const setLoading = value => { $('loading').hidden = !value; };
@@ -24,6 +25,7 @@ function redrawMarkers() {
 function drawShape(coords) { state.shape = coords; if (state.line) map.removeLayer(state.line); state.distanceMarkers.forEach(m => map.removeLayer(m)); state.distanceMarkers=[]; state.line = coords.length > 1 ? L.polyline(coords, { color:'#d85b38', weight:5, opacity:.9, lineCap:'round', lineJoin:'round' }).addTo(map) : null; if (coords.length > 1) { let acc=0; for(let i=1;i<coords.length;i++){ acc += L.latLng(coords[i-1]).distanceTo(L.latLng(coords[i])); if(acc>1000){ const m=L.circleMarker(coords[i],{radius:4,color:'#18201c',weight:1,fillColor:'#fbfaf6',fillOpacity:.95}); m.bindTooltip(`${(acc/1000).toFixed(0)} km`,{permanent:true,direction:'top',className:'distance-label'}); m.addTo(map); state.distanceMarkers.push(m); acc=0; } } } updateStats(); }
 function addPoint(ll) { state.points.push({lat:ll.lat,lng:ll.lng}); saveHistory(); redrawMarkers(); route(); }
 async function route() {
+  const requestId = ++routeRequestId;
   if ($('manualMode').checked) { drawShape(state.points); message(state.points.length > 1 ? 'Manual route ready. Drag a point to reshape it.' : 'Manual mode: click the map to add points.'); return; }
   if (state.points.length < 2) { drawShape(state.points); message(state.points.length ? 'Add another point to find a bike-friendly route.' : 'Click the map to begin.'); return; }
   setLoading(true); message('');
@@ -34,9 +36,10 @@ async function route() {
     const res = await fetch('https://valhalla1.openstreetmap.de/route', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({locations,costing:'bicycle',costing_options,units:'kilometers',shape_format:'polyline6',directions_options:{units:'kilometers'}}) });
     if (!res.ok) throw new Error(`Routing service returned ${res.status}`);
     const data = await res.json(); if (!data.trip?.legs?.length) throw new Error('No route found');
+    if (requestId !== routeRequestId) return;
     const coords = []; data.trip.legs.forEach(leg => { const decoded = decodePolyline(leg.shape, 6); if (coords.length) decoded.shift(); coords.push(...decoded); });
     drawShape(coords); message('Bike route ready. Drag a point to reshape it.');
-  } catch (e) { drawShape([]); message('Could not find a bicycle route for these points. Adjust a stop or try again.', true); }
+  } catch (e) { if (requestId === routeRequestId) { drawShape([]); message('Could not find a bicycle route for these points. Adjust a stop or try again.', true); } }
   finally { setLoading(false); }
 }
 function decodePolyline(str, precision) { let index=0, lat=0, lng=0, factor=10**precision, out=[]; while(index<str.length){ let result=0,shift=0,b; do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);lat += result&1 ? ~(result>>1) : result>>1; result=0;shift=0; do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);lng += result&1 ? ~(result>>1) : result>>1; out.push([lat/factor,lng/factor]); } return out; }
