@@ -66,4 +66,4 @@ $('searchButton').onclick=search;$('searchInput').onkeydown=e=>{if(e.key==='Ente
 
 function saveRoute(){if(state.shape.length<2)return; localStorage.setItem('activity-map.savedRoute',JSON.stringify({points:state.points,shape:state.shape,profile:$('bikeType').value,savedAt:new Date().toISOString()})); updateStats(); message('Route saved in this browser.');}
 function loadRoute(){const raw=localStorage.getItem('activity-map.savedRoute');if(!raw)return;const data=JSON.parse(raw);state.points=data.points||[];state.history=[state.points.map(p=>({...p}))];state.redo=[];if(data.profile)$('bikeType').value=data.profile;redrawMarkers();drawShape(data.shape||state.points);if(state.shape.length>1)map.fitBounds(L.latLngBounds(state.shape),{padding:[35,35]});message('Saved route loaded.');}
-$('saveButton').onclick=saveRoute; $('loadButton').onclick=loadRoute; updateStats();
+$('saveButton').onclick=saveRoute; $('loadButton').onclick=loadRoute; renderPointList(); updateStats();
