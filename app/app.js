@@ -13,7 +13,9 @@ function updateHistoryButtons() { $('undoButton').disabled = state.history.lengt
 function syncDisplay() { if (state.line) state.line.setStyle({ opacity: $('showRoutePath').checked ? .9 : 0 }); state.distanceMarkers.forEach(m => m.setOpacity($('showDistanceMarkers').checked ? 1 : 0)); }
 function updateStats() { $('stops').textContent = state.points.length; $('distance').textContent = state.shape.length > 1 ? km(distance(state.shape)) : '—'; $('clearButton').disabled = state.points.length === 0; $('exportButton').disabled = state.shape.length < 2; $('saveButton').disabled = state.shape.length < 2; $('loadButton').disabled = !localStorage.getItem('activity-map.savedRoute'); updateHistoryButtons(); syncDisplay(); }
 function distance(coords) { let total = 0; for (let i=1;i<coords.length;i++) total += L.latLng(coords[i-1]).distanceTo(L.latLng(coords[i])); return total; }
+function renderPointList() { const box=$('pointList'); if(!state.points.length){box.hidden=true;box.innerHTML='';return;} box.hidden=false; box.innerHTML=state.points.map((p,i)=>{const label=i===0?'Start':i===state.points.length-1&&state.points.length>1?'End':`Waypoint ${i}`; return `<div class="point-row"><span class="point-badge">${i===0?'●':i===state.points.length-1&&state.points.length>1?'◆':i}</span><input aria-label="${label}" value="${label}" readonly><button type="button" data-remove-point="${i}" aria-label="Remove ${label}">×</button></div>`}).join(''); }
 function redrawMarkers() {
+  renderPointList();
   state.markers.forEach(m => map.removeLayer(m)); state.markers = state.points.map((p, i) => {
     const marker = L.marker(p, { draggable: true, icon: L.divIcon({ className:'', html:`<div class="route-marker" style="width:20px;height:20px"><span style="position:absolute;color:white;font:700 10px system-ui;transform:translate(5px,1px)">${i+1}</span></div>`, iconSize:[20,20], iconAnchor:[10,10] }) }).addTo(map);
     marker.on('dragend', e => { const ll=e.target.getLatLng(); state.points[i]={lat:ll.lat,lng:ll.lng}; saveHistory(); route(); }); return marker;
@@ -34,7 +36,7 @@ async function route() {
     const data = await res.json(); if (!data.trip?.legs?.length) throw new Error('No route found');
     const coords = []; data.trip.legs.forEach(leg => { const decoded = decodePolyline(leg.shape, 6); if (coords.length) decoded.shift(); coords.push(...decoded); });
     drawShape(coords); message('Bike route ready. Drag a point to reshape it.');
-  } catch (e) { drawShape(state.points); message('Routing is temporarily unavailable; showing your direct line. Try again in a moment.', true); }
+  } catch (e) { drawShape([]); message('Could not find a bicycle route for these points. Adjust a stop or try again.', true); }
   finally { setLoading(false); }
 }
 function decodePolyline(str, precision) { let index=0, lat=0, lng=0, factor=10**precision, out=[]; while(index<str.length){ let result=0,shift=0,b; do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);lat += result&1 ? ~(result>>1) : result>>1; result=0;shift=0; do{b=str.charCodeAt(index++)-63;result|=(b&31)<<shift;shift+=5}while(b>=32);lng += result&1 ? ~(result>>1) : result>>1; out.push([lat/factor,lng/factor]); } return out; }
@@ -42,6 +44,7 @@ function gpx() { const pts=state.shape; const body=pts.map(([lat,lon])=>`    <tr
 function exportGPX() { const blob=new Blob([gpx()],{type:'application/gpx+xml'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='activity-map-route.gpx'; a.click(); URL.revokeObjectURL(a.href); message('GPX downloaded.'); }
 function parseGPX(text) { const xml=new DOMParser().parseFromString(text,'application/xml'); const pts=[...xml.querySelectorAll('trkpt,rtept')].map(n=>({lat:+n.getAttribute('lat'),lng:+n.getAttribute('lon')})).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)); if(pts.length<2) throw new Error('No route points found'); state.points=pts; state.history=[pts.map(p=>({...p}))]; state.redo=[]; redrawMarkers(); drawShape(pts); map.fitBounds(L.latLngBounds(pts),{padding:[35,35]}); route(); message('Imported GPX. Drag a point to edit it.'); }
 map.on('click', e => addPoint(e.latlng));
+$('pointList').addEventListener('click', e => { const button=e.target.closest('[data-remove-point]'); if(!button)return; const index=+button.dataset.removePoint; state.points.splice(index,1); saveHistory(); redrawMarkers(); route(); });
 $('clearButton').onclick=()=>{state.points=[];saveHistory();redrawMarkers();drawShape([]);message('Route cleared. Click the map to begin.')};
 $('undoButton').onclick=()=>{if(!state.history.length)return; state.redo.push(state.history.pop()); const previous=state.history[state.history.length-1]||[]; state.points=previous.map(p=>({...p})); redrawMarkers(); route(); updateHistoryButtons()};
 $('redoButton').onclick=()=>{if(!state.redo.length)return;const next=state.redo.pop();state.history.push(next.map(p=>({...p})));state.points=next.map(p=>({...p}));redrawMarkers();route();updateHistoryButtons()};
