@@ -4,13 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Activity Map — bike route studio</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3tE8fE2e2X9wQ2M8J3M5xG5sQ5p8=" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="./">activity<span>map</span></a>
-    <div class="tagline">a quiet place to plan a ride</div>
     <div class="top-actions"><button id="importButton" class="button subtle">Import GPX</button><input id="fileInput" type="file" accept=".gpx,application/gpx+xml" hidden><button id="exportButton" class="button primary" disabled>Export GPX</button></div>
   </header>
   <main class="workspace">
@@ -30,6 +29,6 @@
     <section class="map-wrap"><div id="map" aria-label="Interactive route map"></div><div class="map-hint">Click to add a point · drag points to edit</div><div id="loading" class="loading" hidden><span class="spinner"></span>Finding a bike-friendly route…</div></section>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=73339dd"></script>
+  <script src="app.js?v=tiles-2"></script>
 </body>
 </html>
