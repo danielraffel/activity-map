@@ -1,4 +1,4 @@
-name: Deploy Cyclemap to GitHub Pages
+name: Deploy Activity Map to GitHub Pages
 
 on:
   push:
