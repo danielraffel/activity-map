@@ -162,3 +162,9 @@ See [ACTIVITY_PROFILES.md](ACTIVITY_PROFILES.md) for the activity model. Cycling
 ## Workspace controls in the first demonstration
 
 The first demonstration includes routing preferences (bike type, surface tolerance, hill preference, and bike-lane bias), map display options (route visibility and distance markers), undo/redo, browser-local route saving/loading, and GPX export. Saving is local to the browser until an account or sync model is deliberately designed.
+
+## Functional parity checklist
+
+The route editor should support the full interaction model identified during reference testing: selectable activity type, route-building bias (popular/direct), elevation preference (maximize/minimize/any), surface preference (paved/dirt/any), manual mode, map display toggles, map style/terrain controls, units, start/end editing, point ordering, reverse, clear, undo/redo, GPX upload, route saving, elevation/statistics, and coordinate input. A pasted `latitude, longitude` pair should be recognized as a coordinate destination and added without requiring a place search.
+
+The reference activity menu contains route types such as running, trail running, walking, hiking, road riding, mountain biking, gravel, e-bike, paddling, swimming, snow sports, golf, handcycle, skating, and wheelchair travel. Activity Map should expose these as capabilities only when its map and routing data can support them; unsupported activities should use a clearly separate activity-record or venue workflow.
