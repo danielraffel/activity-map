@@ -15,10 +15,10 @@
   <main class="workspace">
     <aside class="panel">
       <div class="eyebrow">ACTIVITY ROUTE STUDIO</div>
-      <h1>Make a route<br><em>worth exploring.</em></h1>
-      <p class="intro">Search for a place, click the map to add stops, then drag the points until the ride feels right.</p>
+      <h1>Build your route</h1>
+      <p class="intro">Search a place or paste coordinates, then add and edit stops on the map.</p>
       <label class="search"><span aria-hidden="true">⌕</span><input id="searchInput" placeholder="Search a place" autocomplete="off"><button id="searchButton" aria-label="Search">↵</button></label>
-      <div id="searchResults" class="search-results" hidden></div><div id="pointList" class="point-list" hidden></div>
+      <div id="searchResults" class="search-results" hidden></div><div class="points-heading">ROUTE POINTS</div><div id="pointList" class="point-list" hidden></div>
       <div class="section-label">ROUTING PREFERENCES</div><div class="preference-row"><label for="routeBias">Route bias</label><select id="routeBias"><option value="popular" selected>Prefer popular</option><option value="direct">Prefer direct</option></select></div><div class="preference-row"><label for="bikeType">Bike type</label><select id="bikeType"><option value="Road">Road bike</option><option value="Hybrid" selected>Everyday bike</option><option value="Cross">Gravel / cross</option><option value="Mountain">Mountain bike</option></select></div><div class="preference-row"><label for="surfacePreference">Surface</label><select id="surfacePreference"><option value="any" selected>Any surface</option><option value="paved">Prefer paved</option><option value="gravel">Prefer gravel</option></select></div><div class="preference-row"><label for="hillPreference">Hills</label><select id="hillPreference"><option value="any" selected>Any elevation</option><option value="avoid">Avoid hills</option><option value="climb">Seek climbing</option></select></div><label class="preference"><input id="bikeLanes" type="checkbox" checked> Prefer bike lanes and cycleways</label><label class="preference"><input id="manualMode" type="checkbox"> Manual mode</label><div class="section-label display-label">MAP DISPLAY</div><label class="preference"><input id="showRoutePath" type="checkbox" checked> Show route path</label><label class="preference"><input id="showDistanceMarkers" type="checkbox" checked> Show distance markers</label>
       <div class="instructions"><div class="step"><b>1</b><span>Click the map to add a start and stops.</span></div><div class="step"><b>2</b><span>Drag any point to reshape your route.</span></div><div class="step"><b>3</b><span>Export a GPX for OpenTrailPaper or your bike computer.</span></div></div>
       <div class="stats"><div><small>DISTANCE</small><strong id="distance">—</strong></div><div><small>STOPS</small><strong id="stops">0</strong></div></div>
@@ -29,6 +29,6 @@
     <section class="map-wrap"><div id="map" aria-label="Interactive route map"></div><div class="map-hint">Click to add a point · drag points to edit</div><div id="loading" class="loading" hidden><span class="spinner"></span>Finding a bike-friendly route…</div></section>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="app.js?v=points-1"></script>
+  <script src="app.js?v=points-2"></script>
 </body>
 </html>
